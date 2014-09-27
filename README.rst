@@ -15,7 +15,7 @@ Download the scripts, for example::
 
 Copy the content of ``scripts/`` into ``/usr/local/bin/``::
 
-    cp /tmp/bacula-resubmit-master/scripts/* /usr/local/bin/
+    cp /tmp/bacula-scripts-master/scripts/* /usr/local/bin/
 
 Based on the ``*.example`` scripts, create your own scripts (without
 ``.example`` suffix)::
