@@ -1,0 +1,9 @@
+#! /bin/sh
+
+script=`readlink -f $0`
+scrdir=`dirname $script`
+
+status=0
+$scrdir/bacu_free_snapshot /dev/debian/log_snap /mnt/snapshot/var/log || status=1
+$scrdir/bacu_free_snapshot /dev/debian/main_snap /mnt/snapshot || status=1
+exit $status

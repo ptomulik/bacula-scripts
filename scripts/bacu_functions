@@ -1,0 +1,77 @@
+#
+# Functions supporting bacu_take_snapshot, bacu_free_snapshot
+#
+
+create_fds() {
+  ferr=`mktemp -u`
+  fout=`mktemp -u`
+
+  exec 4>$fout 3<$fout
+  exec 6>$ferr 5<$ferr
+}
+
+cleanup_fds() {
+  exec 4>&- 3<&-
+  exec 6>&- 5<&-
+  rm -f $fout $ferr
+}
+
+report_action() {
+  if [ -z "$BACU_QUIET" ]; then
+    echo -n "`basename $0`: action: ${1}... ";
+  fi
+}
+
+report_result() {
+  if [ -z "$BACU_QUIET" ]; then
+    echo "$1";
+  fi
+}
+
+report_info() {
+  if [ -z "$BACU_QUIET" ]; then
+    echo "`basename $0`: info: $1";
+  fi
+}
+
+report_error() {
+  echo "`basename $0`: error: $1" >&2;
+}
+
+cleanup_snapshot() {
+  if lvs --noheadings -o lv_name "$snapdev" 1>/dev/null 2>/dev/null; then
+    report_action "removing snapshot '$snapdev'"
+    if lvremove -f "$snapdev" 1>/dev/null 2>/dev/null; then
+      report_result "done";
+    else
+      report_result "failed";
+    fi
+  fi
+}
+
+fail() {
+  report_result "$1";
+  if [ -z "$BACU_QUIET" ]; then
+    cat <&3 >&1;
+    cat <&5 >&2;
+  else
+    cat <&3 >/dev/null;
+    cat <&5 >/dev/null;
+  fi
+  report_error "$2";
+  if [ "$snapcreated" = true ]; then cleanup_snapshot; fi
+  cleanup_fds;
+  exit 1;
+}
+
+success() {
+  report_result "$1";
+##  cat <&3 >&1;
+  if [ -z "$BACU_QUIET" ]; then
+    cat <&3 >/dev/null;
+    cat <&5 >&2;
+  else
+    cat <&3 >/dev/null;
+    cat <&5 >/dev/null;
+  fi
+}

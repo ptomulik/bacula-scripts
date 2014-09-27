@@ -1,0 +1,87 @@
+#! /bin/sh
+
+script=`readlink -f $0`
+scrdir=`dirname $script`
+
+. $scrdir/bacu_functions
+
+#
+# Script
+#
+
+create_fds
+
+export LVM_SUPPRESS_FD_WARNINGS=yes
+
+if [ $# -ne 4 ]; then
+  echo "Usage: bacu_take_snapshot <size> <orig-volume> <snapshot-volume> <mountpoint>" >&2;
+  exit 1;
+fi
+
+snapsize=$1
+voldev=$2;
+snap=$3
+mountpoint=$4
+
+report_action "ensure that '$voldev' is an LVM volume"
+if lvs --noheadings -o lv_name $voldev 1>&4 2>&6; then
+  volname=`cat <&3 | sed -e 's:^\s\+::' -e 's:\s\+$::'`
+  success "ok";
+else
+  fail "error" "'$voldev' does not seem to be an LVM volume";
+fi
+
+devdir=`dirname $voldev`;
+if [ -d `dirname "$snap"` ]; then
+  snapdev="$snap"
+  snapname=`basename $snap`
+else
+  snapname="$snap";
+  snapdev="$devdir/$snapname";
+fi
+snapcreated=false
+
+report_info "original volume name: '$volname'";
+report_info "snapshot volume name: '$snapname'";
+report_info "snapshot device path: '$snapdev'";
+
+report_action "ensure that '$snapdev' does not exist"
+if [ -e "$snapdev" ]; then
+  fail "error" "$snapdev already exists"
+else
+  success "ok";
+fi
+
+mod='dm-snapshot';
+report_action "load '$mod' module";
+if modprobe $mod 2>&6 1>&4; then
+  sleep 3 1>/dev/null 2>/dev/null;
+  success "done"
+else
+  fail "error" "failed to load '$mod' module"
+fi
+
+report_action "create snapshot of '$voldev'";
+if lvcreate --snapshot --size $snapsize --name $snapname $voldev 1>&4 2>&6; then
+  sleep 3 1>/dev/null 2>/dev/null;
+  success "done";
+  snapcreated=true
+else
+  fail "error" "failed to create snapshot of '$voldev'"
+fi
+
+report_action "ensure that '$snapdev' is an LVM volume"
+if lvs --noheadings -o lv_name $snapdev 1>&4 2>&6 ; then
+  success "ok";
+else
+  fail "error" "$snapdev does not seem to be an LVM volume"
+fi
+
+report_action "mount '$snapdev' to '$mountpoint'"
+if mount -o ro $snapdev $mountpoint 1>&4 2>&6; then
+  success "done"
+else
+  fail "error" "failed to mount '$snapdev' to '$mountpoint'"
+fi
+
+cleanup_fds

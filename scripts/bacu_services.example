@@ -1,0 +1,32 @@
+#! /bin/sh
+
+# start/stop production services when doing snapshot for backup
+start_services() {
+  # TODO: customize list of services to be started after snapshot creation
+  service freeradius start
+}
+stop_services() {
+  # TODO: customize list of services to be stopped before snapshot creation
+  service freeradius stop
+}
+
+script=`readlink -f $0`
+scrdir=`dirname $script`
+
+. $scrdir/bacu_functions
+
+create_fds
+
+case "$1" in
+  start)
+      report_info "starting production services"
+      start_services
+    ;;
+  stop)
+      report_info "stopping production services"
+      stop_services
+    ;;
+  *)
+    echo "Usage: bacu_services start|stop";
+    exit 1;
+esac

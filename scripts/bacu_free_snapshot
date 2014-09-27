@@ -1,0 +1,77 @@
+#! /bin/sh
+
+script=`readlink -f $0`
+scrdir=`dirname $script`
+
+. $scrdir/bacu_functions
+
+#
+# Script
+#
+
+create_fds
+
+export LVM_SUPPRESS_FD_WARNINGS=yes
+
+if [ $# -ne 2 ]; then
+  echo "Usage: bacu_free_snapshot <snapshot-volume> <mount-point>" >&2;
+  exit 1;
+fi
+
+snapdev=$1
+mountpoint=$2
+
+report_info "snapshot device path: '$snapdev'";
+report_info "snapshot mount point: '$mountpoint";
+
+mod='dm-snapshot';
+report_action "load '$mod' module";
+if modprobe $mod 2>&6 1>&4; then
+  sleep 3 1>/dev/null 2>/dev/null;
+  success "done"
+else
+  fail "error" "failed to load '$mod' module"
+fi
+
+report_action "ensure that '$snapdev' is an LVM volume"
+if lvs --noheadings -o lv_attr $snapdev 1>&4 2>&6 ; then
+  vtype=`cat <&3 | sed -e 's:^\s\+::' -e 's:\s\+$::' -e 's:^\(.\).*:\1:'`
+  success "ok"
+else
+  fail "error" "$snapdev does not seem to be an LVM volume"
+fi
+
+report_action "ensure that '$snapdev' is a snapshot"
+if [ "$vtype" = "s" ]; then
+  success "ok";
+else
+  fail "error" "$snapdev is not a snapshot";
+fi
+
+if mountpoint -q $mountpoint; then
+  report_action "ensure that $mountpoint is a mount point of $snapdev"
+  mpd=`mountpoint -d $mountpoint`
+  mpx=`mountpoint -x $snapdev`
+  if [ "$mpd" = "$mpx" ]; then
+    success "ok"
+  else
+    fail "error" "$mountpoint ($mpd) is not a mount point of $snapdev ($mpx)"
+  fi
+  report_action "umount $mountpoint'"
+  if umount $mountpoint 1>&4 2>&6; then
+    success "done"
+  else
+    fail "error" "failed to umount '$mountpoint'";
+  fi
+else
+  report_info "$mountpoint is not a mount point";
+fi
+
+report_action "remove snapshot '$snapdev'"
+if lvremove -f "$snapdev" 1>&4 2>&6; then
+  success "done";
+else
+  fail "failed" "failed to remove snapshot '$snapdev'";
+fi
+
+cleanup_fds

@@ -1,0 +1,36 @@
+#! /bin/sh
+
+script=`readlink -f $0`
+scrdir=`dirname $script`
+
+status=0
+$scrdir/bacu_services stop || echo "warning: could not stop production services" >&2
+
+# ############################# SNAPSHOT START ###############################
+#
+# TODO: Customize your snapshots here.
+#
+# ############################################################################
+#
+# In this example we're backing up contents of two LVM volumes:
+#
+#   /dev/debian/main
+#   /dev/debian/log
+#
+# For each volume we create an LVM snapshot. The snapshots are then mounted
+# to appropriate directories under.
+#
+#   /mnt/snapshot/
+#
+# NOTE: You should create the /mnt/snapshot before starting the bacu_* scripts.
+# NOTE: The following lines should be in sync with the appropriate lines
+#       in bacu_after_backup. See the script named ``bacu_after_backup.example``.
+# ############################################################################
+#
+$scrdir/bacu_take_snapshot 768M /dev/debian/main /dev/debian/main_snap /mnt/snapshot || status=1
+$scrdir/bacu_take_snapshot 128M /dev/debian/log /dev/debian/log_snap /mnt/snapshot/var/log || status=1
+# ############################## SNAPSHOT END ################################
+
+$scrdir/bacu_services start || echo "warning: could not start production services" >&2
+
+exit $status
