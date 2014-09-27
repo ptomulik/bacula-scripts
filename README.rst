@@ -7,7 +7,7 @@ scripts for doing LVM snapshots. Tested on Debian 7.6, lvm2.
 How to
 ------
 
-Download the scripts, for example::
+Download the scripts to your bacula client, for example::
 
     cd /tmp/
     wget https://github.com/ptomulik/bacula-scripts/archive/master.zip
@@ -28,6 +28,9 @@ Based on the ``*.example`` scripts, create your own scripts (without
     vim /usr/local/bin/bacu_before_backup # customize the list of LVM snapshots
 
 You'll find more details in the ``*.example`` scripts.
+
+Configure your bacula server to run the ``bacu_before_backup`` and
+``bacu_after_backup`` scripts on client when running bacula jobs.
 
 
 LICENSE
