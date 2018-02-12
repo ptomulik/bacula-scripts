@@ -4,6 +4,52 @@ script=`readlink -f $0`
 scrdir=`dirname $script`
 
 status=0
+
+# ############################## DOS BACKUP ##################################
+#
+# TODO: Customize your backup of DOS partition tables
+#
+# ############################################################################
+#  In this example we're backing up the layout of disk having GPT partition
+#  table. The following files will be created or overwritten:
+#
+#     /backup/disk-layout/sda.mbr
+#     /backup/disk-layout/sda.sfdisk
+#     /backup/disk-layout/sda.readme
+#
+#  Note, that 'fdisk' and 'sfdisk' commands are required. These programs are
+#  part of 'fdisk' package. On Debian:
+#
+#     apt-get install fdisk
+#
+# NOTE: You must create /backup/disk-layout to use the following command
+# ############################################################################
+#
+$scrdir/bacu_backup_gpt /dev/sda /backup/disk-layout/sda || echo "warning: could not backup GPT of /dev/sda" >&2
+# ############################## GPT BACKUP END ##############################
+
+# ############################## GPT BACKUP ##################################
+#
+# TODO: Customize your backup of GPT partition tables
+#
+# ############################################################################
+#  In this example we're backing up the layout of disk having GPT partition
+#  table. The following files will be created or overwritten:
+#
+#     /backup/disk-layout/sda.sgdisk
+#     /backup/disk-layout/sda.readme
+#
+#  Note, that 'gdisk' and 'sgdisk' commands are required. These programs are
+#  part of 'gdisk' package. On Debian:
+#
+#     apt-get install gdisk
+#
+# NOTE: You must create /backup/disk-layout to use the following command
+# ############################################################################
+#
+$scrdir/bacu_backup_gpt /dev/sda /backup/disk-layout/sda || echo "warning: could not backup GPT of /dev/sda" >&2
+# ############################## GPT BACKUP END ##############################
+
 $scrdir/bacu_services stop || echo "warning: could not stop production services" >&2
 
 # ############################# SNAPSHOT START ###############################

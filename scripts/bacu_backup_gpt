@@ -1,0 +1,79 @@
+#! /bin/sh
+
+script=`readlink -f $0`
+scrdir=`dirname $script`
+
+. $scrdir/bacu_functions
+
+#
+# Script
+#
+
+create_fds
+
+export LVM_SUPPRESS_FD_WARNINGS=yes
+
+if [ $# -ne 2 ]; then
+  echo "Usage: bacu_backup_gpt <device> <backup-file-base>" >&2;
+  exit 1;
+fi
+
+device=$1;
+outbase=$2;
+
+sgoutfile="${outbase}.sgdisk";
+nfoutfile="${outbase}.readme";
+
+report_action "ensure that '$device' has a partition table";
+if gdisk -l "$device" 1>&4 2>&6; then
+  gdiskout=`cat <&3`;
+  success "done";
+else
+  fail "error" "'$device' does not seem to have a partition table";
+fi
+
+report_action "ensure that '$device' has valid GPT partition table";
+if echo "$gdiskout" | grep 'GPT:\s*present' > /dev/null 2>/dev/null; then
+  success "done";
+else
+  fail "error" "'$device' has no GPT partition table";
+fi
+
+for outfile in "$sgoutfile" "$nfoutfile"; do
+  report_action "ensure that '$outfile' does not exist or it's a regular file";
+  if [ ! -e "$outfile" ] || [ -f "$outfile" ]; then
+    success "done";
+  else
+    fail "error" "'$outfile' exists and is not a file";
+  fi
+done
+
+report_action "storing GPT of '$device' to '$sgoutfile'"
+if sgdisk --backup="$sgoutfile" "$device" 1>&4 2>&6; then
+  success "done";
+else
+  fail "error" "failed to store GPT of '$device' to '$sgoutfile'";
+fi
+
+text="\
+############################ WARNING!!!! ####################################
+#
+# THE FOLLOWING INSTRUCTIONS ARE DESTRUCTIVE. ENSURE YOU BACKUP YOUR DISK.
+# YOU WILL LOSE YOUR PARTITION TABLE, BOOT LOADER, AND DATA FROM '${device}'
+# ONCE YOU RUN (ANY OF) THE FOLLOWING COMMANDS.
+#
+############################ WARNING!!!! ####################################
+#
+# Recovering the layout of '${device}' from \"`basename "${sgoutfile}"`\":
+#
+# sgdisk --load-backup='`basename "${sgoutfile}"`' '${device}'
+"
+
+report_action "storing recovery instructions to '$nfoutfile'"
+if echo "$text" > "${nfoutfile}"; then
+	success "done";
+else
+	fail "error" "failed to store instructions"
+fi
+
+cleanup_fds

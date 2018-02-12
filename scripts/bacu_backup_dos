@@ -1,0 +1,94 @@
+#! /bin/sh
+
+script=`readlink -f $0`
+scrdir=`dirname $script`
+
+. $scrdir/bacu_functions
+
+#
+# Script
+#
+
+create_fds
+
+export LVM_SUPPRESS_FD_WARNINGS=yes
+
+if [ $# -ne 2 ]; then
+  echo "Usage: bacu_backup_dos <device> <backup-file-basename>" >&2;
+  exit 1;
+fi
+
+device=$1
+outbase=$2
+
+report_action "ensure that '$device' has a partition table";
+if fdisk -l "$device" 1>&4 2>&6; then
+  fdiskout=`cat <&3`;
+  success "done";
+else
+  fail "error" "'$device' does not seem to be a device with partition table";
+fi
+
+report_action "ensure that '$device' has valid DOS partition table";
+if echo "$fdiskout" | grep -i 'Disk\s*label\s\+type:\s*\(ms\)\?dos' > /dev/null 2>/dev/null; then
+  success "done";
+else
+  fail "error" "'$device' does not seem to have DOS partition table";
+fi
+
+ddoutfile="${outbase}.mbr";
+sfoutfile="${outbase}.sfdisk";
+nfoutfile="${outbase}.readme";
+
+for outfile in "$ddoutfile" "$sfoutfile" "$nfoutfile"; do
+	report_action "ensure that '$outfile' does not exist or it's a regular file";
+	if [ ! -e "$outfile" ] || [ -f "$outfile" ]; then
+		success "done";
+	else
+		fail "error" "'$outbase' exists and is not a file";
+	fi
+done
+
+report_action "storing MBR of '$device' to '$ddoutfile' with dd"
+if dd if="$device" of="$ddoutfile" bs=512 count=1 1>&4 2>&6; then
+  cat > "$ddoutfile" <&3;
+  cat > /dev/null <&5;
+  success "done";
+else
+  fail "error" "failed to store partition table of '$device' to '$ddoutfile'";
+fi
+
+report_action "storing partition table of '$device' to '$sfoutfile' with sfdisk"
+if sfdisk --dump "$device" 1>&4 2>&6; then
+	cat > "$sfoutfile" <&3
+  success "done";
+else
+  fail "error" "failed to store partition table of '$device' to '$sfoutfile'";
+fi
+
+text="\
+############################ WARNING!!!! ####################################
+#
+# THE FOLLOWING INSTRUCTIONS ARE DESTRUCTIVE. ENSURE YOU BACKUP YOUR DISK.
+# YOU WILL LOSE YOUR PARTITION TABLE, MBR, AND DATA FROM '${device}' ONCE
+# YOU RUN (ANY OF) THE FOLLOWING COMMANDS.
+#
+############################ WARNING!!!! ####################################
+#
+# Recovering the layout of '${device}' from \"`basename "${ddoutfile}"`\"
+# and \"`basename "${sfoutfile}"`\":
+#
+#
+# dd if=\"`basename ${ddoutfile}`\" of=\"${device}\" count=446
+# sfdisk < \"`basename "${sfoutfile}"`\"
+"
+
+report_action "storing recovery instructions to '$nfoutfile'"
+if echo "$text" > "${nfoutfile}"; then
+	success "done";
+else
+	fail "error" "failed to store instructions"
+fi
+
+
+cleanup_fds
