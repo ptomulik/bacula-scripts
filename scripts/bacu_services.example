@@ -3,11 +3,15 @@
 # start/stop production services when doing snapshot for backup
 start_services() {
   # TODO: customize list of services to be started after snapshot creation
-  service freeradius start
+  # EXAMPLE:
+  # service freeradius start
+  true
 }
 stop_services() {
   # TODO: customize list of services to be stopped before snapshot creation
-  service freeradius stop
+  # EXAMPLE:
+  # service freeradius stop
+  true
 }
 
 script=`readlink -f $0`
